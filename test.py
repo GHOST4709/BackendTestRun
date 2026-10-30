@@ -1,4 +1,4 @@
-"""Root-level pytest smoke tests. Detailed feature tests live under tests/."""
+"""Root-level pytest smoke & regression tests."""
 from fastapi.testclient import TestClient
 from app.main import create_app
 
@@ -27,3 +27,15 @@ def test_openapi_contains_expected_modules():
         paths = schema["paths"]
         for path in ("/health", "/api/v1/auth/register", "/api/v1/projects/", "/api/v1/tasks/", "/api/v1/dashboard/summary"):
             assert path in paths
+
+
+def test_dashboard_summary_handles_empty_tasks():
+    """Validates that dashboard summary does not crash with ZeroDivisionError when no tasks exist."""
+    with TestClient(create_app("sqlite+pysqlite:///:memory:")) as client:
+        response = client.get("/api/v1/dashboard/summary")
+        # Currently crashes with 500 Internal Server Error (ZeroDivisionError)
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total_tasks"] == 0
+        assert payload["completed_tasks"] == 0
+        assert payload["completion_rate"] == 0.0
